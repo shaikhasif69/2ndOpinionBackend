@@ -32,7 +32,7 @@ const doctorSchema = new mongoose.Schema({
   },
   profilePicture: {
     type: String,
-    required: false, // Assuming profile picture is optional
+    required: false, 
   },
   gender: {
     type: String,

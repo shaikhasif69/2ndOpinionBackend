@@ -4,11 +4,15 @@ const crypto = require("crypto");
 
 const otpStore = {};
 
+
 const generateOtp = () => {
   console.log("hey ?? in otp function!");
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 exports.collectDoctorInfo = async (req, res) => {
+  console.log("Data : " + JSON.stringify(req.body));
+  console.log("Files received:", req.files);
+
   try {
     const {
       email,
@@ -22,9 +26,11 @@ exports.collectDoctorInfo = async (req, res) => {
       achievements,
     } = req.body;
 
-    const profilePicture = req.files['profilePicture'] ? req.files['profilePicture'][0] : null;
-    const educationDocuments = req.files['educationDocuments'] || [];
-    const achievementDocuments = req.files['achievementDocuments'] || [];
+    const profilePicture = req.files["profilePicture"]
+      ? req.files["profilePicture"][0]
+      : null;
+    const educationDocuments = req.files["educationDocuments"] || [];
+    const achievementDocuments = req.files["achievementDocuments"] || [];
 
     if (!profilePicture) {
       return res.status(400).json({ error: "Profile picture is required." });
@@ -35,15 +41,18 @@ exports.collectDoctorInfo = async (req, res) => {
       otp: generatedOtp,
       data: {
         ...req.body,
-        profilePicturePath: profilePicture.path, 
-        educationDocumentsPaths: educationDocuments.map(doc => doc.path), 
-        achievementDocumentsPaths: achievementDocuments.map(doc => doc.path) 
-      }
+        profilePicturePath: profilePicture.path,
+        educationDocumentsPaths: educationDocuments.map((doc) => doc.path),
+        achievementDocumentsPaths: achievementDocuments.map((doc) => doc.path),
+      },
     };
 
     await sendOtpEmail(email, generatedOtp);
-    res.status(200).json({ message: "OTP sent to email. Please verify.", email });
+    res
+      .status(200)
+      .json({ message: "OTP sent to email. Please verify.", email });
   } catch (error) {
+    console.error(error); // Added for debugging
     res.status(500).json({ error: "Error in sending OTP. Please try again." });
   }
 };
@@ -51,7 +60,6 @@ exports.collectDoctorInfo = async (req, res) => {
 exports.verifyOtpAndRegisterDoctor = async (req, res) => {
   try {
     const { email, otp } = req.body;
-
 
     if (!otpStore[email]) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
