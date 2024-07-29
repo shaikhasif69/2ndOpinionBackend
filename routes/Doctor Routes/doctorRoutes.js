@@ -26,8 +26,7 @@ router.post(
   "/collectDoctorInfo",
   upload.fields([
     { name: "profilePicture", maxCount: 1 },
-    { name: "educationDocuments", maxCount: 10 },
-    { name: "achievementDocuments", maxCount: 10 },
+    { name: "doc", maxCount: 10 },
   ]),
   DoctorController.collectDoctorInfo
 );

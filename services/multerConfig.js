@@ -4,18 +4,19 @@ const path = require('path');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    console.log("this is the file: " + file)
     let uploadPath = '../uploads'; 
     
     switch (file.fieldname) {
       case 'profilePicture':
         uploadPath = path.join(__dirname, '../uploads/profilePictures');
         break;
-      case 'educationDocuments':
-        uploadPath = path.join(__dirname, '../uploads/educationDocs');
+      case 'doc':
+        uploadPath = path.join(__dirname, '../uploads/educationDoc');
         break;
-      case 'achievementDocuments':
-        uploadPath = path.join(__dirname, '../uploads/achievementDocs');
-        break;
+      // case 'achievementDocuments':
+      //   uploadPath = path.join(__dirname, '../uploads/achievementDocs');
+      //   break;
       default:
         uploadPath = path.join(__dirname, '../uploads');
         break;
@@ -33,7 +34,8 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
   console.log('looooooooooh')
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+  console.log("this are files: " + JSON.stringify(file))
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/octet-stream']; 
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
