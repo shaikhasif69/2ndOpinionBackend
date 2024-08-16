@@ -24,7 +24,7 @@ const sendOtpEmail = (email, otp) => {
     if (err) {
       console.log("Error in sending email", err);
     } else {
-      console.log("Sent Mail Successfully");
+      console.log("Sent Mail Successfully: " + email  + " otp: " + otp);
     }
 });
   

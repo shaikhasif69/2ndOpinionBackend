@@ -2,12 +2,10 @@ const express = require("express");
 const router = express.Router();
 
 const DoctorController = require("../../controllers/doctorController");
-const  upload = require("../../services/multerConfig");
-
+const upload = require("../../services/multerConfig");
 
 // get routes here
 console.log("Upload object:", upload);
-
 
 router.get("/username/:username", DoctorController.checkUsernameAvailability);
 router.get("/phone/:phone", DoctorController.isValidPhone);
@@ -19,9 +17,6 @@ router.get("/doctors/:id", DoctorController.getDoctorById);
 
 // post routes here
 
-// router.post("/register-doctor", DoctorController.registerDoctor);
-// router.post("/collect-info", DoctorController.collectDoctorInfo);
-
 router.post(
   "/collectDoctorInfo",
   upload.fields([
@@ -32,6 +27,8 @@ router.post(
 );
 
 router.post("/verify-otp", DoctorController.verifyOtpAndRegisterDoctor);
+
+router.post("/login", DoctorController.loginDoctor);
 
 // router.post("/verify-otp", DoctorController.verifyOtp);
 

@@ -1,18 +1,49 @@
 const Doctor = require("../models/doctorSchema");
+const User = require("../models/userSchema");
 const sendOtpEmail = require("../services/emailService");
 const crypto = require("crypto");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const path = require("path");
+
+function moveToPermanentStorage(tempPath, fileField) {
+  let permanentBasePath = path.join(__dirname, "../uploads");
+  switch (fileField) {
+    case "profilePicture":
+      permanentBasePath = path.join(permanentBasePath, "profilePictures");
+      break;
+    case "doc":
+      permanentBasePath = path.join(permanentBasePath, "educationDoc");
+      break;
+    // case 'achievementDocuments':
+    //   permanentBasePath = path.join(permanentBasePath, 'achievementDocs');
+    //   break;
+    default:
+      permanentBasePath = path.join(permanentBasePath, "otherDocs");
+      break;
+  }
+
+  const permanentPath = path.join(permanentBasePath, path.basename(tempPath));
+
+  // Ensure the directory exists
+  if (!fs.existsSync(permanentBasePath)) {
+    fs.mkdirSync(permanentBasePath, { recursive: true });
+  }
+
+  // Move the file to the permanent path
+  fs.renameSync(tempPath, permanentPath);
+
+  return permanentPath;
+}
 
 const otpStore = {};
+const tempStorage = {}; // In-memory storage for the sake of example
 
 const generateOtp = () => {
-  console.log("hey ?? in otp function!");
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 exports.collectDoctorInfo = async (req, res) => {
-  console.log("you hit me?")
-  console.log("Data : " + JSON.stringify(req.body));
-  console.log("Files received:", req.files);
-
   try {
     const {
       email,
@@ -21,10 +52,13 @@ exports.collectDoctorInfo = async (req, res) => {
       address,
       phone,
       username,
+      password,
       gender,
       education,
       achievements,
     } = req.body;
+
+    const trimmedEmail = email.trim();
 
     const profilePicture = req.files["profilePicture"]
       ? req.files["profilePicture"][0]
@@ -37,7 +71,7 @@ exports.collectDoctorInfo = async (req, res) => {
     }
 
     const generatedOtp = generateOtp();
-    otpStore[email] = {
+    otpStore[trimmedEmail] = {
       otp: generatedOtp,
       data: {
         ...req.body,
@@ -47,10 +81,15 @@ exports.collectDoctorInfo = async (req, res) => {
       },
     };
 
-    sendOtpEmail(email, generatedOtp);
+    tempStorage[trimmedEmail] = {
+      profilePicture,
+      educationDocuments,
+    };
+
+    sendOtpEmail(trimmedEmail, generatedOtp);
     res
       .status(200)
-      .json({ message: "OTP sent to email. Please verify.", email });
+      .json({ message: "OTP sent to email. Please verify.", trimmedEmail });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error in sending OTP. Please try again." });
@@ -60,21 +99,43 @@ exports.collectDoctorInfo = async (req, res) => {
 exports.verifyOtpAndRegisterDoctor = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    const trimmedEmail = email.trim();
+    // console.log("email: " + trimmedEmail + " Opt : " + otp);
 
-    if (!otpStore[email]) {
+    if (!otpStore[trimmedEmail]) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
 
-    if (otpStore[email].otp !== otp) {
+    if (otpStore[trimmedEmail].otp !== otp) {
       return res.status(400).json({ error: "Invalid OTP." });
     }
 
-    const doctor = new Doctor(otpStore[email].data);
+    const doctorData = otpStore[trimmedEmail].data;
+    const salt = await bcrypt.genSalt(10);
+    doctorData.password = await bcrypt.hash(doctorData.password, salt);
+
+    // Move files from temporary to permanent location
+    const { profilePicture, educationDocuments } = tempStorage[trimmedEmail];
+    if (profilePicture) {
+      const permanentPath = moveToPermanentStorage(
+        profilePicture.path,
+        profilePicture.fieldname
+      );
+      doctorData.profilePicture = permanentPath;
+    }
+
+    doctorData.education = educationDocuments.map((doc, index) => ({
+      title: doctorData.educationList[index][0],
+      subtitle: doctorData.educationList[index][1],
+      document: moveToPermanentStorage(doc.path, doc.fieldname),
+    }));
+
+    const doctor = new Doctor(doctorData);
     await doctor.save();
 
-    delete otpStore[email];
+    delete otpStore[trimmedEmail];
 
-    res.status(201).json(doctor);
+    res.status(201).json({ message: "Success", doctor });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal Error while registring" });
@@ -118,8 +179,9 @@ exports.isValidEmail = async (req, res) => {
 
   try {
     const existingDoctor = await Doctor.findOne({ email });
+    const existingUser = await User.findOne({ email });
 
-    if (existingDoctor) {
+    if (existingDoctor || existingUser) {
       res.json({ available: false });
     } else {
       res.json({ available: true });
@@ -128,7 +190,6 @@ exports.isValidEmail = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-// Get all doctors
 exports.getAllDoctors = async (req, res) => {
   try {
     const doctors = await Doctor.find();
@@ -138,7 +199,37 @@ exports.getAllDoctors = async (req, res) => {
   }
 };
 
-// Get a doctor by ID
+exports.loginDoctor = async (req, res) => {
+  try {
+    console.log("hitting me??");
+    const { username, password } = req.body;
+    console.log("email: " + username + " pass: " + password);
+
+    const doctor = await Doctor.findOne({
+      $or: [{ username }, { email: username }],
+    });
+    if (!doctor) {
+      console.log("invalid email, pass");
+      return res.status(400).json({ error: "Invalid username or email." });
+    }
+
+    const isMatch = await bcrypt.compare(password, doctor.password);
+    if (!isMatch) {
+      console.log("invalid pass");
+      return res.status(400).json({ error: "Invalid password." });
+    }
+
+    // const token = jwt.sign({ id: doctor._id }, process.env.JWT_SECRET, {
+    //   expiresIn: "1h",
+    // });
+    console.log(res.status + " status here")
+    res.status(200).json({ success: true, doctor });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({success: false, error: "Internal Server Error" });
+  }
+};
+
 exports.getDoctorById = async (req, res) => {
   try {
     const doctor = await Doctor.findById(req.params.id);
@@ -151,7 +242,6 @@ exports.getDoctorById = async (req, res) => {
   }
 };
 
-// Update a doctor by ID
 exports.updateDoctorById = async (req, res) => {
   try {
     const doctor = await Doctor.findByIdAndUpdate(req.params.id, req.body, {
@@ -167,7 +257,6 @@ exports.updateDoctorById = async (req, res) => {
   }
 };
 
-// Delete a doctor by ID
 exports.deleteDoctorById = async (req, res) => {
   try {
     const doctor = await Doctor.findByIdAndDelete(req.params.id);

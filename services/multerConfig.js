@@ -1,28 +1,9 @@
 const multer = require('multer');
 const path = require('path');
 
-
-const storage = multer.diskStorage({
+const tempStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    console.log("this is the file: " + file)
-    let uploadPath = '../uploads'; 
-    
-    switch (file.fieldname) {
-      case 'profilePicture':
-        uploadPath = path.join(__dirname, '../uploads/profilePictures');
-        break;
-      case 'doc':
-        uploadPath = path.join(__dirname, '../uploads/educationDoc');
-        break;
-      // case 'achievementDocuments':
-      //   uploadPath = path.join(__dirname, '../uploads/achievementDocs');
-      //   break;
-      default:
-        uploadPath = path.join(__dirname, '../uploads');
-        break;
-    }
-    
-    // Ensure the directory exists
+    const uploadPath = path.join(__dirname, '../tempUploads'); // Temporary storage
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
@@ -31,10 +12,7 @@ const storage = multer.diskStorage({
   }
 });
 
-
 const fileFilter = (req, file, cb) => {
-  console.log('looooooooooh')
-  console.log("this are files: " + JSON.stringify(file))
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/octet-stream']; 
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -43,6 +21,6 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter });
+const upload = multer({ storage: tempStorage, fileFilter });
 
 module.exports = upload;
