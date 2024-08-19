@@ -9,7 +9,7 @@ const OTP_EXPIRY_TIME = 5 * 60 * 1000;
 
 const generateOtp = () => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  console.log("Generating OTP..." + otp);
+  console.log("Generating 2 OTP..." + otp);
 
   return otp;
 };
