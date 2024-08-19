@@ -2,7 +2,7 @@ const User = require("../models/userSchema");
 const Doctor = require("../models/doctorSchema");
 const sendOtpEmail = require("../services/emailService");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const otpStore = {};
 
 const OTP_EXPIRY_TIME = 5 * 60 * 1000;
