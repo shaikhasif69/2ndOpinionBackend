@@ -114,7 +114,6 @@ exports.verifyOtpAndRegisterDoctor = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     doctorData.password = await bcrypt.hash(doctorData.password, salt);
 
-    // Move files from temporary to permanent location
     const { profilePicture, educationDocuments } = tempStorage[trimmedEmail];
     if (profilePicture) {
       const permanentPath = moveToPermanentStorage(
@@ -201,7 +200,6 @@ exports.getAllDoctors = async (req, res) => {
 
 exports.loginDoctor = async (req, res) => {
   try {
-    console.log("hitting me??");
     const { username, password } = req.body;
     console.log("email: " + username + " pass: " + password);
 
@@ -219,14 +217,15 @@ exports.loginDoctor = async (req, res) => {
       return res.status(400).json({ error: "Invalid password." });
     }
 
-    // const token = jwt.sign({ id: doctor._id }, process.env.JWT_SECRET, {
-    //   expiresIn: "1h",
-    // });
-    console.log(res.status + " status here")
-    res.status(200).json({ success: true, doctor });
+    const token = jwt.sign({ userId: doctor._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    console.log(res.status + " status here");
+    res.status(200).json({ success: true, doctor, token: token });
   } catch (error) {
     console.log(error);
-    res.status(500).json({success: false, error: "Internal Server Error" });
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 };
 

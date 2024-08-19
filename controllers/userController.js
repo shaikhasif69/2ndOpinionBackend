@@ -1,10 +1,11 @@
 const User = require("../models/userSchema");
 const Doctor = require("../models/doctorSchema");
 const sendOtpEmail = require("../services/emailService");
+const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const otpStore = {}; // To store OTPs and their timestamps
+const otpStore = {};
 
-const OTP_EXPIRY_TIME = 5 * 60 * 1000; // OTP valid for 5 minutes
+const OTP_EXPIRY_TIME = 5 * 60 * 1000;
 
 const generateOtp = () => {
   console.log("Generating OTP...");
@@ -27,7 +28,7 @@ exports.collectUserInfo = async (req, res) => {
     } = req.body;
 
     // Check if email exists in User or Doctor collection
-    
+
     // const existingUser = await User.findOne({ email });
 
     // if (existingUser || existingDoctor) {
@@ -35,9 +36,10 @@ exports.collectUserInfo = async (req, res) => {
     //     .status(400)
     //     .json({ error: "Email already exists. Please use another email." });
     // }
+    const normalizedEmail = email.trim().toLowerCase();
 
     const generatedOtp = generateOtp();
-    otpStore[email] = {
+    otpStore[normalizedEmail] = {
       otp: generatedOtp,
       data: {
         firstName,
@@ -48,12 +50,12 @@ exports.collectUserInfo = async (req, res) => {
         password,
         gender,
         email,
-        profilePicture, // Include other fields if needed
+        profilePicture,
       },
       timestamp: Date.now(), // Store the timestamp of OTP generation
     };
 
-    await sendOtpEmail(email, generatedOtp);
+    await sendOtpEmail(normalizedEmail, generatedOtp);
     res
       .status(200)
       .json({ message: "OTP sent to email. Please verify.", email });
@@ -62,7 +64,6 @@ exports.collectUserInfo = async (req, res) => {
     res.status(500).json({ error: "Error sending OTP. Please try again." });
   }
 };
-
 
 exports.verifyOtpAndRegisterUser = async (req, res) => {
   try {
@@ -85,9 +86,13 @@ exports.verifyOtpAndRegisterUser = async (req, res) => {
       return res.status(400).json({ error: "Invalid OTP." });
     }
 
-    const user = new User(otpStore[normalizedEmail].data);
+    const userData = otpStore[normalizedEmail].data;
+
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(user.password, salt);
+    userData.password = await bcrypt.hash(userData.password, salt);
+
+    const user = new User(userData);
+
     await user.save();
 
     delete otpStore[normalizedEmail];
@@ -120,7 +125,7 @@ exports.isValidPhone = async (req, res) => {
   console.log("phone : " + phone);
   try {
     const existingUser = await User.findOne({ phone });
-    const existingDoctor = await Doctor.findOne({phone});
+    const existingDoctor = await Doctor.findOne({ phone });
 
     if (existingUser || existingDoctor) {
       res.json({ status: "User Exists", available: false });
@@ -149,10 +154,9 @@ exports.isValidEmail = async (req, res) => {
   }
 };
 
-
 exports.loginPatient = async (req, res) => {
   try {
-    console.log("hitting me ")
+    console.log("hitting me ");
     const { username, password } = req.body;
 
     const user = await User.findOne({
@@ -167,15 +171,14 @@ exports.loginPatient = async (req, res) => {
       return res.status(400).json({ error: "Invalid password." });
     }
 
-    // const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    //   expiresIn: "1h",
-    // });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-    // res.status(200).json({ token, user });
-    res.status(200).json({success: true,  user });
+    res.status(200).json({ success: true, user, token: token });
     console.log("Login successful for user:", username);
   } catch (error) {
     console.error("Error during login:", error);
-    res.status(500).json({success: false, error: "Internal Server Error" });
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 };
