@@ -39,6 +39,7 @@ exports.collectUserInfo = async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     const generatedOtp = generateOtp();
+    console.log("opt here: " + generateOtp);
     otpStore[normalizedEmail] = {
       otp: generatedOtp,
       data: {
@@ -54,6 +55,7 @@ exports.collectUserInfo = async (req, res) => {
       },
       timestamp: Date.now(), // Store the timestamp of OTP generation
     };
+
 
     await sendOtpEmail(normalizedEmail, generatedOtp);
     res
