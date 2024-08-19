@@ -8,8 +8,10 @@ const otpStore = {};
 const OTP_EXPIRY_TIME = 5 * 60 * 1000;
 
 const generateOtp = () => {
-  console.log("Generating OTP...");
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log("Generating OTP..." + otp);
+
+  return otp;
 };
 
 exports.collectUserInfo = async (req, res) => {
@@ -55,7 +57,6 @@ exports.collectUserInfo = async (req, res) => {
       },
       timestamp: Date.now(), // Store the timestamp of OTP generation
     };
-
 
     await sendOtpEmail(normalizedEmail, generatedOtp);
     res
