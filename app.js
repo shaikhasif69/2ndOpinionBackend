@@ -21,13 +21,13 @@ connectDB();
 // Routes
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/chat', chatRoutes); // Add the chat routes
+app.use('/api/chat', chatRoutes); 
 app.use('/api/file', fileRoutes); 
 
 // Default route
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
+// app.get('/', (req, res) => {
+//   res.send('Hello, World!');
+// });
 
 io.on('connection', (socket) => {
   console.log('A user connected');
