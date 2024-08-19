@@ -9,7 +9,7 @@ const socketIo = require('socket.io');
 require('dotenv').config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT;
 
 const server = http.createServer(app);
 
