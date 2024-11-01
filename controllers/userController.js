@@ -99,8 +99,11 @@ exports.verifyOtpAndRegisterUser = async (req, res) => {
     await user.save();
 
     delete otpStore[normalizedEmail];
+    const token = jwt.sign({ userId: user._id, userType: "patient" }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
+    });
 
-    res.status(201).json({ response: "Success", user });
+    res.status(201).json({ response: "Success", user, token: token });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal Error while registering" });
@@ -174,8 +177,8 @@ exports.loginPatient = async (req, res) => {
       return res.status(400).json({ error: "Invalid password." });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+    const token = jwt.sign({ userId: user._id, userType: "patient" }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
     });
 
     res.status(200).json({ success: true, user, token: token });

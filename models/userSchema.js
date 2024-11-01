@@ -10,15 +10,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    address: {
-      type: String,
-      required: false,
-    },
-    phone: {
-      type: String,
-      unique: true,
-      required: false,
-    },
     email: {
       type: String,
       required: true,
@@ -32,7 +23,11 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      unique: false,
+    },
+    phone: {
+      type: String,
+      unique: true,
+      required: false,
     },
     profilePicture: {
       type: String,
@@ -40,8 +35,42 @@ const userSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
+      enum: ["Male", "Female", "Other"],
       required: false,
-      enum: ["Male", "Female", "Other"], // Assuming gender options
+    },
+    dateOfBirth: {
+      type: Date,
+      required: false,
+    },
+    address: {
+      street: { type: String },
+      city: { type: String },
+      state: { type: String },
+      country: { type: String },
+      zipCode: { type: String },
+    },
+    emergencyContact: {
+      name: { type: String, required: false },
+      relationship: { type: String, required: false },
+      phone: { type: String, required: false },
+    },
+    medicalHistory: [
+      {
+        condition: { type: String },
+        notes: { type: String },
+        diagnosedDate: { type: Date },
+      },
+    ],
+    allergies: [String], 
+    notificationPreferences: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+      push: { type: Boolean, default: true },
+    },
+    accountStatus: {
+      type: String,
+      enum: ["Active", "Inactive", "Suspended"],
+      default: "Active",
     },
   },
   {

@@ -10,16 +10,6 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
-    address: {
-      type: String,
-      required: false,
-    },
-    phone: {
-      type: String,
-      unique: true,
-      required: false,
-    },
     email: {
       type: String,
       required: true,
@@ -33,7 +23,11 @@ const doctorSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      unique: false,
+    },
+    phone: {
+      type: String,
+      unique: true,
+      required: false,
     },
     profilePicture: {
       type: String,
@@ -42,7 +36,15 @@ const doctorSchema = new mongoose.Schema(
     gender: {
       type: String,
       required: true,
-      enum: ["Male", "Female", "Other"], 
+      enum: ["Male", "Female", "Other"],
+    },
+    specialty: {
+      type: String,
+      required: false,
+    },
+    experience: {
+      type: Number, 
+      required: false,
     },
     education: [
       {
@@ -72,6 +74,29 @@ const doctorSchema = new mongoose.Schema(
         },
       },
     ],
+    address: {
+      street: { type: String },
+      city: { type: String },
+      state: { type: String },
+      country: { type: String },
+      zipCode: { type: String },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+    },
+    availability: {
+      from: { type: String }, // e.g., "09:00 AM"
+      to: { type: String }, // e.g., "05:00 PM"
+    },
+    ratings: {
+      type: Number,
+      default: 0,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

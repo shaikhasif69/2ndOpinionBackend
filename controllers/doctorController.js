@@ -1,5 +1,6 @@
 const Doctor = require("../models/doctorSchema");
 const User = require("../models/userSchema");
+const cloudinary = require("cloudinary").v2;
 const sendOtpEmail = require("../services/emailService");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -37,59 +38,160 @@ function moveToPermanentStorage(tempPath, fileField) {
   return permanentPath;
 }
 
+const uploadToCloudinary = async (filePath, folder) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { folder },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+  });
+};
+
+
 const otpStore = {};
 const tempStorage = {}; // In-memory storage for the sake of example
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
+// exports.collectDoctorInfo = async (req, res) => {
+//   try {
+//     const {
+//       email,
+//       firstName,
+//       lastName,
+//       address,
+//       phone,
+//       username,
+//       password,
+//       gender,
+//       education,
+//       achievements,
+//     } = req.body;
+
+//     const trimmedEmail = email.trim();
+
+//     const profilePicture = req.files["profilePicture"]
+//       ? req.files["profilePicture"][0]
+//       : null;
+//     const educationDocuments = req.files["doc"] || [];
+//     // const achievementDocuments = req.files["achievementDocuments"] || [];
+
+//     if (!profilePicture) {
+//       return res.status(400).json({ error: "Profile picture is required." });
+//     }
+
+//     const generatedOtp = generateOtp();
+//     otpStore[trimmedEmail] = {
+//       otp: generatedOtp,
+//       data: {
+//         ...req.body,
+//         profilePicturePath: profilePicture.path,
+//         educationDocumentsPaths: educationDocuments.map((doc) => doc.path),
+//         // achievementDocumentsPaths: achievementDocuments.map((doc) => doc.path),
+//       },
+//     };
+
+//     tempStorage[trimmedEmail] = {
+//       profilePicture,
+//       educationDocuments,
+//     };
+
+//     sendOtpEmail(trimmedEmail, generatedOtp);
+//     res
+//       .status(200)
+//       .json({ message: "OTP sent to email. Please verify.", trimmedEmail });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Error in sending OTP. Please try again." });
+//   }
+// };
+
+// exports.verifyOtpAndRegisterDoctor = async (req, res) => {
+//   try {
+//     const { email, otp } = req.body;
+//     const trimmedEmail = email.trim();
+//     // console.log("email: " + trimmedEmail + " Opt : " + otp);
+
+//     if (!otpStore[trimmedEmail]) {
+//       return res.status(400).json({ error: "Invalid or expired OTP." });
+//     }
+
+//     if (otpStore[trimmedEmail].otp !== otp) {
+//       return res.status(400).json({ error: "Invalid OTP." });
+//     }
+
+//     const doctorData = otpStore[trimmedEmail].data;
+//     const salt = await bcrypt.genSalt(10);
+//     doctorData.password = await bcrypt.hash(doctorData.password, salt);
+
+//     const { profilePicture, educationDocuments } = tempStorage[trimmedEmail];
+//     if (profilePicture) {
+//       const permanentPath = moveToPermanentStorage(
+//         profilePicture.path,
+//         profilePicture.fieldname
+//       );
+//       doctorData.profilePicture = permanentPath;
+//     }
+
+//     doctorData.education = educationDocuments.map((doc, index) => ({
+//       title: doctorData.educationList[index][0],
+//       subtitle: doctorData.educationList[index][1],
+//       document: moveToPermanentStorage(doc.path, doc.fieldname),
+//     }));
+
+//     const doctor = new Doctor(doctorData);
+//     await doctor.save();
+
+//     delete otpStore[trimmedEmail];
+//     const token = jwt.sign(
+//       { userId: doctor._id, userType: "doctor" },
+//       process.env.JWT_SECRET,
+//       {
+//         expiresIn: "30d",
+//       }
+//     );
+
+//     res.status(201).json({ message: "Success", doctor, token: token });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ error: "Internal Error while registring" });
+//   }
+// };
+
+
 exports.collectDoctorInfo = async (req, res) => {
   try {
-    const {
-      email,
-      firstName,
-      lastName,
-      address,
-      phone,
-      username,
-      password,
-      gender,
-      education,
-      achievements,
-    } = req.body;
-
+    const { email, ...otherData } = req.body;
     const trimmedEmail = email.trim();
 
     const profilePicture = req.files["profilePicture"]
       ? req.files["profilePicture"][0]
       : null;
     const educationDocuments = req.files["doc"] || [];
-    // const achievementDocuments = req.files["achievementDocuments"] || [];
 
     if (!profilePicture) {
       return res.status(400).json({ error: "Profile picture is required." });
     }
 
-    const generatedOtp = generateOtp();
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore[trimmedEmail] = {
       otp: generatedOtp,
-      data: {
-        ...req.body,
-        profilePicturePath: profilePicture.path,
-        educationDocumentsPaths: educationDocuments.map((doc) => doc.path),
-        // achievementDocumentsPaths: achievementDocuments.map((doc) => doc.path),
-      },
+      data: { ...otherData },
     };
 
+    // Store files in memory
     tempStorage[trimmedEmail] = {
       profilePicture,
       educationDocuments,
     };
 
     sendOtpEmail(trimmedEmail, generatedOtp);
-    res
-      .status(200)
-      .json({ message: "OTP sent to email. Please verify.", trimmedEmail });
+    res.status(200).json({ message: "OTP sent to email. Please verify.", trimmedEmail });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error in sending OTP. Please try again." });
@@ -100,7 +202,6 @@ exports.verifyOtpAndRegisterDoctor = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const trimmedEmail = email.trim();
-    // console.log("email: " + trimmedEmail + " Opt : " + otp);
 
     if (!otpStore[trimmedEmail]) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
@@ -115,31 +216,45 @@ exports.verifyOtpAndRegisterDoctor = async (req, res) => {
     doctorData.password = await bcrypt.hash(doctorData.password, salt);
 
     const { profilePicture, educationDocuments } = tempStorage[trimmedEmail];
+
+    // Upload profile picture to Cloudinary if it exists
     if (profilePicture) {
-      const permanentPath = moveToPermanentStorage(
-        profilePicture.path,
-        profilePicture.fieldname
+      doctorData.profilePicture = await uploadBufferToCloudinary(
+        profilePicture.buffer,
+        "doctors/profilePictures",
+        profilePicture.originalname
       );
-      doctorData.profilePicture = permanentPath;
     }
 
-    doctorData.education = educationDocuments.map((doc, index) => ({
-      title: doctorData.educationList[index][0],
-      subtitle: doctorData.educationList[index][1],
-      document: moveToPermanentStorage(doc.path, doc.fieldname),
-    }));
+    // Upload each education document to Cloudinary
+    doctorData.education = await Promise.all(
+      educationDocuments.map(async (doc, index) => ({
+        title: doctorData.educationList[index][0],
+        subtitle: doctorData.educationList[index][1],
+        document: await uploadBufferToCloudinary(doc.buffer, "doctors/educationDocs", doc.originalname),
+      }))
+    );
 
     const doctor = new Doctor(doctorData);
     await doctor.save();
 
+    // Cleanup temporary data
     delete otpStore[trimmedEmail];
+    delete tempStorage[trimmedEmail];
 
-    res.status(201).json({ message: "Success", doctor });
+    const token = jwt.sign(
+      { userId: doctor._id, userType: "doctor" },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    res.status(201).json({ message: "Success", doctor, token: token });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: "Internal Error while registring" });
+    res.status(500).json({ error: "Internal Error while registering" });
   }
 };
+
 
 exports.checkUsernameAvailability = async (req, res) => {
   const { username } = req.params;
@@ -217,9 +332,13 @@ exports.loginDoctor = async (req, res) => {
       return res.status(400).json({ error: "Invalid password." });
     }
 
-    const token = jwt.sign({ userId: doctor._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { userId: doctor._id, userType: "doctor" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "30d",
+      }
+    );
 
     console.log(res.status + " status here");
     res.status(200).json({ success: true, doctor, token: token });
@@ -265,5 +384,53 @@ exports.deleteDoctorById = async (req, res) => {
     res.status(200).json({ message: "Doctor deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Fetch doctors based on location
+exports.getDoctorsByLocation = async (req, res) => {
+  try {
+    const { lat, lng, maxDistance = 10 } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ error: "Latitude and longitude required" });
+    }
+
+    const doctors = await Doctor.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          $maxDistance: maxDistance * 1000,
+        },
+      },
+    });
+
+    res.status(200).json({ doctors });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching doctors by location" });
+  }
+};
+
+// Fetch doctors filtered by specialty
+exports.getDoctorsBySpecialty = async (req, res) => {
+  try {
+    const { specialty } = req.query;
+
+    if (!specialty) {
+      return res.status(400).json({ error: "Specialty required" });
+    }
+
+    const doctors = await Doctor.find({
+      specialty: { $regex: specialty, $options: "i" },
+    });
+
+    res.status(200).json({ doctors });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching doctors by specialty" });
   }
 };

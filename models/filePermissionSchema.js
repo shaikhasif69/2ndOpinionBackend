@@ -16,6 +16,12 @@ const permissionRequestSchema = new mongoose.Schema({
     enum: ["pending", "approved", "rejected"],
     default: "pending",
   },
+  accessLevel: {
+    type: String,
+    enum: ["read-only", "edit"], // Determines level of access
+    default: "read-only",
+  },
+  validUntil: { type: Date }, // Expiration for access rights
   requestedAt: { type: Date, default: Date.now },
   respondedAt: { type: Date },
 });
