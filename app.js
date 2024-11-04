@@ -1,62 +1,33 @@
-const express = require('express');
-const connectDB = require('./db');
-const doctorRoutes = require('./routes/Doctor Routes/doctorRoutes');
-const userRoutes = require('./routes/User Routes/userRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const fileRoutes = require('./routes/filesRoutes'); 
-const http = require('http');
-const socketIo = require('socket.io');
-require('dotenv').config();
+const express = require("express");
+const http = require("http");
+const socketHandler = require("../2ndOpinionBackend/socket");
+const connectDB = require("./db");
+const doctorRoutes = require("./routes/doctorRoutes");
+const userRoutes = require("./routes/userRoutes");
+const chatRoutes = require("./routes/chatRoutes");
+const fileRoutes = require("./routes/filesRoutes");
+const consultationRoutes = require("./routes/consultationRoutes");
+require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT;
-
+const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 
-const io = socketIo(server);
+socketHandler(server);
 
 app.use(express.json());
 connectDB();
 
 // Routes
-app.use('/api/doctor', doctorRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/chat', chatRoutes); 
-app.use('/api/file', fileRoutes); 
+app.use("/api/doctor", doctorRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/file", fileRoutes);
+app.use("/api/consult", consultationRoutes);
 
 // Default route
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
-
-io.on('connection', (socket) => {
-  console.log('A user connected');
-
-  socket.on('joinChat', (chatId) => {
-    socket.join(chatId);
-    console.log(`User joined chat: ${chatId}`);
-  });
-
-  socket.on('sendMessage', async (data) => {
-    const { chatId, senderId, senderModel, text } = data;
-
-    const newMessage = {
-      sender: senderId,
-      senderModel: senderModel,
-      text: text,
-    };
-
-    const Chat = require('./models/Chat'); 
-    const chat = await Chat.findById(chatId);
-    chat.messages.push(newMessage);
-    await chat.save();
-
-    io.to(chatId).emit('newMessage', newMessage);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  });
+app.get("/", (req, res) => {
+  res.send("Hello, World!");
 });
 
 server.listen(port, () => {

@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const authenticate = require("../../middleware/authentication");
-const DoctorController = require("../../controllers/doctorController");
-const upload = require("../../services/multerConfig");
+const authenticate = require("../middleware/authentication");
+const DoctorController = require("../controllers/doctorController");
+const upload = require("../services/multerConfig");
 // const upload = require("/services/multerConfig");
 // get routes here
 
@@ -13,6 +13,9 @@ router.get("/email/:email", DoctorController.isValidEmail);
 router.get("/get-all-doctors", authenticate, DoctorController.getAllDoctors);
 
 router.get("/doctors/:id", authenticate, DoctorController.getDoctorById);
+
+router.get("/doctor-by-speciality/specialty",authenticate, DoctorController.getDoctorsBySpecialty);
+router.get("/get-all-specialties", authenticate,DoctorController.getAllSpecialties);
 
 // post routes here
 

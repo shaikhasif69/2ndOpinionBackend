@@ -39,11 +39,11 @@ const doctorSchema = new mongoose.Schema(
       enum: ["Male", "Female", "Other"],
     },
     specialty: {
-      type: String,
+      type: [String],
       required: false,
     },
     experience: {
-      type: Number, 
+      type: Number,
       required: false,
     },
     education: [

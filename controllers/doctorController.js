@@ -2,7 +2,6 @@ const Doctor = require("../models/doctorSchema");
 const User = require("../models/userSchema");
 const cloudinary = require("cloudinary").v2;
 const sendOtpEmail = require("../services/emailService");
-const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
@@ -242,19 +241,25 @@ exports.verifyOtpAndRegisterDoctor = async (req, res) => {
     delete otpStore[trimmedEmail];
     delete tempStorage[trimmedEmail];
 
+    const doctorObject = doctor.toObject();
+
+    delete doctorObject.password;
+    delete doctorObject.createdAt;
+    delete doctorObject.updatedAt;
+    delete doctorObject.__v;
+
     const token = jwt.sign(
       { userId: doctor._id, userType: "doctor" },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
 
-    res.status(201).json({ message: "Success", doctor, token: token });
+    res.status(201).json({ message: "Success", doctor: doctorObject, token: token });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Internal Error while registering" });
   }
 };
-
 
 exports.checkUsernameAvailability = async (req, res) => {
   const { username } = req.params;
@@ -279,7 +284,7 @@ exports.isValidPhone = async (req, res) => {
     const existingDoctoro = await Doctor.findOne({ phone });
 
     if (existingDoctoro) {
-      res.json({ status: "you sucks!", available: false });
+      res.json({ status: "Not Available!", available: false });
     } else {
       res.json({ available: true });
     }
@@ -306,7 +311,7 @@ exports.isValidEmail = async (req, res) => {
 };
 exports.getAllDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.find();
+    const doctors = await Doctor.find().select("-password -createdAt -updatedAt -__v");
     res.status(200).json(doctors);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -321,6 +326,7 @@ exports.loginDoctor = async (req, res) => {
     const doctor = await Doctor.findOne({
       $or: [{ username }, { email: username }],
     });
+
     if (!doctor) {
       console.log("invalid email, pass");
       return res.status(400).json({ error: "Invalid username or email." });
@@ -332,25 +338,33 @@ exports.loginDoctor = async (req, res) => {
       return res.status(400).json({ error: "Invalid password." });
     }
 
+    // Convert Mongoose document to a plain JavaScript object
+    const doctorObject = doctor.toObject();
+
+    // Remove sensitive fields
+    delete doctorObject.password;
+    delete doctorObject.createdAt;
+    delete doctorObject.updatedAt;
+    delete doctorObject.__v;
+
     const token = jwt.sign(
       { userId: doctor._id, userType: "doctor" },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "30d",
-      }
+      { expiresIn: "30d" }
     );
 
     console.log(res.status + " status here");
-    res.status(200).json({ success: true, doctor, token: token });
+    res.status(200).json({ success: true, doctor: doctorObject, token: token });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 };
 
+
 exports.getDoctorById = async (req, res) => {
   try {
-    const doctor = await Doctor.findById(req.params.id);
+    const doctor = await Doctor.findById(req.params.id).select("-password -createdAt -updatedAt -__v");
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
@@ -415,22 +429,46 @@ exports.getDoctorsByLocation = async (req, res) => {
   }
 };
 
-// Fetch doctors filtered by specialty
+// Fetch doctors by specialty
 exports.getDoctorsBySpecialty = async (req, res) => {
+  const { specialty } = req.query; 
+  console.log("specialty: ", specialty);
   try {
-    const { specialty } = req.query;
-
-    if (!specialty) {
-      return res.status(400).json({ error: "Specialty required" });
+    const doctors = await Doctor.find({ specialty: specialty }).select("-password -createdAt -updatedAt -__v");
+    if (doctors.length === 0) {
+      return res.status(404).json({ message: "No doctors found for the selected specialty" });
     }
-
-    const doctors = await Doctor.find({
-      specialty: { $regex: specialty, $options: "i" },
-    });
-
-    res.status(200).json({ doctors });
+    res.status(200).json(doctors);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error fetching doctors by specialty" });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Fetch all unique specialties
+exports.getAllSpecialties = async (req, res) => {
+  try {
+    const specialties = await Doctor.distinct("specialty");
+    res.status(200).json(specialties);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+// Update doctor rating
+exports.updateDoctorRating = async (req, res) => {
+  const { id } = req.params;
+  const { rating } = req.body; 
+  try {
+    const doctor = await Doctor.findById(id);
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+    // Simple average rating calculation; replace with a more complex rating system if needed
+    doctor.ratings = (doctor.ratings + rating) / 2; 
+    await doctor.save();
+    res.status(200).json({ message: "Rating updated successfully", doctor });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
