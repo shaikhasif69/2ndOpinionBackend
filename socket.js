@@ -3,107 +3,109 @@ const mongoose = require("mongoose");
 const Chat = require("./models/chatSchema");
 const User = require("./models/userSchema");
 const Doctor = require("./models/doctorSchema");
+const chatController = require("./controllers/chatController");
 
 const socketHandler = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: "*", // Replace with your frontend's URL
+      origin: "*",
+      // origin: ["http://localhost:19000", "http://<flutter_device_ip>:<port>"],
       methods: ["GET", "POST"],
       credentials: true,
     },
   });
 
   io.on("connection", (socket) => {
-    console.log("A user connected");
-
-    // ** Join Room for Doctor-User Chat **
     socket.on("joinChat", async ({ userId, doctorId }) => {
       try {
-        // Define a unique room identifier for this chat
+        console.log("Trying to join chat..");
+        console.log("userId: wth", userId);
+        console.log("docId : ", doctorId);
+
+        // Use the controller function to find or create the chat
+        const chat = await chatController.findOrCreateChat(userId, doctorId);
+
         const roomId = `${userId}_${doctorId}`;
-        
-        // Check if chat exists in the database or create a new one
-        let chat = await Chat.findOne({
-          participants: {
-            $all: [
-              new mongoose.Types.ObjectId(userId),
-              new mongoose.Types.ObjectId(doctorId),
-            ],
-          },
-        });
-
-        if (!chat) {
-          chat = new Chat({
-            participants: [
-              new mongoose.Types.ObjectId(userId),
-              new mongoose.Types.ObjectId(doctorId),
-            ],
-          });
-          await chat.save();
-        }
-
-        // Join the room
         socket.join(roomId);
-        console.log(`User ${userId} and Doctor ${doctorId} joined room: ${roomId}`);
 
-        // Emit previous messages for this chat room to the newly connected user/doctor
-        socket.emit("previousMessages", chat.messages);
+        console.log(
+          `User ${userId} and Doctor ${doctorId} joined room: ${roomId}`
+        );
 
+        // Emit previous messages and chatId to the client
+        socket.emit("previousMessages", {
+          chatId: chat._id,
+          messages: chat.messages,
+        });
       } catch (error) {
         console.error("Error joining chat room:", error);
-        socket.emit("error", { message: "Error joining chat room." });
+        socket.emit("error", {
+          message: error.message || "Error joining chat room.",
+        });
       }
     });
 
-    // ** Handle Sending a Message in Doctor-User Chat **
-    socket.on("sendMessage", async ({ chatId, senderId, senderModel, text }) => {
-      try {
-        const chat = await Chat.findById(chatId);
+    socket.on(
+      "sendMessage",
+      async ({ chatId, senderId, senderModel, text }) => {
+        try {
+          console.log(
+            `Received message: chatId=${chatId}, senderId=${senderId}, text=${text}`
+          );
 
-        if (!chat) {
-          return socket.emit("error", { message: "Chat not found." });
+          const chat = await Chat.findById(chatId);
+
+          if (!chat) {
+            console.error("Chat not found.");
+            return socket.emit("error", { message: "Chat not found." });
+          }
+
+          const newMessage = {
+            sender: new mongoose.Types.ObjectId(senderId),
+            senderModel,
+            text,
+            timestamp: new Date(),
+          };
+
+          chat.messages.push(newMessage);
+          await chat.save();
+
+          const roomId = chat.participants.map((id) => id.toString()).join("_");
+
+          console.log(`Broadcasting new message to room: ${roomId}`);
+          // Broadcast the new message to everyone in the room, including the sender
+          io.to(roomId).emit("newMessage", {
+            senderId,
+            senderModel,
+            text,
+            timestamp: newMessage.timestamp,
+          });
+        } catch (error) {
+          console.error("Error handling sendMessage:", error);
+          socket.emit("error", { message: "Error handling sendMessage." });
         }
-
-        const newMessage = {
-          sender: new mongoose.Types.ObjectId(senderId),
-          senderModel,
-          text,
-        };
-
-        // Add the new message to the chat's messages array and save it
-        chat.messages.push(newMessage);
-        await chat.save();
-
-        // Broadcast the new message to all participants in the room
-        const roomId = chat.participants.map((id) => id.toString()).join("_");
-        io.to(roomId).emit("newMessage", newMessage);
-
-      } catch (error) {
-        console.error("Error sending message:", error);
-        socket.emit("error", { message: "Error sending message." });
       }
-    });
-
-    // ** Handle File Sharing Permission Request (Placeholder) **
+    );
     socket.on("requestFileSharing", async ({ userId, doctorId }) => {
       try {
         const roomId = `${userId}_${doctorId}`;
-        
-        // Emit a request to the doctor for file sharing permission
+
         io.to(roomId).emit("fileSharingRequest", {
           message: `User ${userId} is requesting permission to share a file.`,
           userId,
         });
-
       } catch (error) {
         console.error("Error in file sharing request:", error);
         socket.emit("error", { message: "Error requesting file sharing." });
       }
     });
 
-    // ** Handle Disconnection **
     socket.on("disconnect", () => {
       console.log("A user disconnected");
+    });
+
+    socket.on("connect", () => {
+      console.log("A user is connected");
     });
   });
 };

@@ -33,9 +33,9 @@ const chatSchema = new mongoose.Schema(
         seen: { type: Boolean, default: false },
       },
     ],
-    typingStatus: {
-      [mongoose.Schema.Types.ObjectId]: { type: Boolean, default: false },
-    },
+    // typingStatus: {
+    //   [mongoose.Schema.Types.ObjectId]: { type: Boolean, default: false },
+    // },
     lastMessage: { 
       type: String 
     }, 

@@ -16,7 +16,11 @@ router.get("/doctors/:id", authenticate, DoctorController.getDoctorById);
 
 router.get("/doctor-by-speciality/specialty",authenticate, DoctorController.getDoctorsBySpecialty);
 router.get("/get-all-specialties", authenticate,DoctorController.getAllSpecialties);
+router.get("/available-doctors", authenticate, DoctorController.getAvailableDoctors);
+router.get("/top-doctors", authenticate, DoctorController.getTopDoctors);
 
+router.get("/search-doctors", authenticate, DoctorController.searchDoctorsByName);
+router.get("/doctors-by-location", authenticate, DoctorController.getDoctorsByLocation);
 // post routes here
 
 router.post(
@@ -33,7 +37,6 @@ router.post("/verify-otp", DoctorController.verifyOtpAndRegisterDoctor);
 
 router.post("/login", DoctorController.loginDoctor);
 
-// router.post("/verify-otp", DoctorController.verifyOtp);
 
 router.put("/doctor/:id", authenticate, DoctorController.updateDoctorById);
 

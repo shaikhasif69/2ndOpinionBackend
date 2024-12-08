@@ -86,8 +86,8 @@ const doctorSchema = new mongoose.Schema(
       },
     },
     availability: {
-      from: { type: String }, // e.g., "09:00 AM"
-      to: { type: String }, // e.g., "05:00 PM"
+      from: { type: String },  
+      to: { type: String }, 
     },
     ratings: {
       type: Number,

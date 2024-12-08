@@ -164,7 +164,7 @@ exports.loginPatient = async (req, res) => {
   try {
     console.log("hitting me ");
     const { username, password } = req.body;
-
+    console.log("username: ", username)
     const user = await User.findOne({
       $or: [{ username }, { email: username }],
     });
@@ -176,6 +176,7 @@ exports.loginPatient = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid password." });
     }
+    console.log("the user: ", user);
     // Convert Mongoose document to a plain JavaScript object
     const userObject = user.toObject();
     // Remove sensitive fields
@@ -185,12 +186,12 @@ exports.loginPatient = async (req, res) => {
     delete userObject.updatedAt;
     delete userObject.__v;
 
+    console.log("spot difference : ", userObject);
     const token = jwt.sign({ userId: user._id, userType: "patient" }, process.env.JWT_SECRET, {
       expiresIn: "30d",
     });
 
     res.status(200).json({ success: true, userObject, token: token });
-    console.log("Login successful for user:", username);
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ success: false, error: "Internal Server Error" });

@@ -3,34 +3,69 @@ const Chat = require("../models/chatSchema");
 const User = require("../models/userSchema");
 const Doctor = require("../models/doctorSchema");
 
-exports.getOrCreateChat = async (req, res) => {
-  console.log("helllo there this working ? ");
-  const { userId, doctorId } = req.params;
+// exports.getOrCreateChat = async (req, res) => {
+//   console.log("helllo there this working ? ");
+//   const { userId, doctorId } = req.params;
 
+//   try {
+//     let chat = await Chat.findOne({
+//       participants: {
+//         $all: [
+//           new mongoose.Types.ObjectId(userId),
+//           new mongoose.Types.ObjectId(doctorId),
+//         ],
+//       },
+//     });
+
+//     if (!chat) {
+//       chat = new Chat({
+//         participants: [
+//           new mongoose.Types.ObjectId(userId),
+//           new mongoose.Types.ObjectId(doctorId),
+//         ],
+//       });
+//       await chat.save();
+//     }
+
+//     res.json(chat);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// };
+
+exports.findOrCreateChat = async (userId, doctorId) => {
   try {
+    console.log("userId: wth", userId);
+    console.log("docId: ", doctorId);
+    // Validate IDs
+    if (
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      !mongoose.Types.ObjectId.isValid(doctorId)
+    ) {
+      throw new Error("Invalid userId or doctorId");
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const doctorObjectId = new mongoose.Types.ObjectId(doctorId);
+
+    // Find the chat
     let chat = await Chat.findOne({
-      participants: {
-        $all: [
-          new mongoose.Types.ObjectId(userId),
-          new mongoose.Types.ObjectId(doctorId),
-        ],
-      },
+      participants: { $all: [userObjectId, doctorObjectId] },
     });
 
+    // Create a new chat if not found
     if (!chat) {
       chat = new Chat({
-        participants: [
-          new mongoose.Types.ObjectId(userId),
-          new mongoose.Types.ObjectId(doctorId),
-        ],
+        participants: [userObjectId, doctorObjectId],
+        messages: [],
       });
       await chat.save();
     }
 
-    res.json(chat);
+    return chat;
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    throw error;
   }
 };
 
@@ -55,7 +90,7 @@ exports.sendMessage = async (req, res) => {
   }
 
   const newMessage = {
-    sender: new mongoose.Types.ObjectId(senderId),  // Corrected
+    sender: new mongoose.Types.ObjectId(senderId), // Corrected
     senderModel,
     text,
   };
